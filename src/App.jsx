@@ -332,6 +332,33 @@ function ImageEditor({ image }) {
         textLines.forEach((textLine, i) => {
           ctx.fillText(textLine, textX, textY + (i * 18 / scale));
         });
+
+        // Añadir un indicador visual para textos editables (pequeño botón de edición)
+        if (viewMode === 'edit') {
+          // Dibujar un pequeño icono de "editar" al lado del texto
+          const editIconX = isPointingRight 
+            ? textX - 15 / scale
+            : textX + textWidth + 5 / scale;
+          const editIconY = textY - 5 / scale;
+          
+          // Círculo indicador de que el texto es editable
+          ctx.beginPath();
+          ctx.arc(editIconX, editIconY, 6 / scale, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(60, 180, 250, 0.8)';
+          ctx.fill();
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 1 / scale;
+          ctx.stroke();
+          
+          // Dibujar "lápiz" icono
+          ctx.fillStyle = 'white';
+          ctx.beginPath();
+          ctx.moveTo(editIconX - 2 / scale, editIconY - 2 / scale);
+          ctx.lineTo(editIconX + 2 / scale, editIconY - 2 / scale);
+          ctx.lineTo(editIconX + 2 / scale, editIconY + 2 / scale);
+          ctx.lineTo(editIconX - 2 / scale, editIconY + 2 / scale);
+          ctx.fill();
+        }
       }
     });
     
@@ -441,9 +468,87 @@ function ImageEditor({ image }) {
     setOffset({ x: 0, y: 0 });
   };
 
+  // Función para hacer un texto editable
+  const editLineText = (line) => {
+    // Guardar el estado actual en el historial antes de editar
+    setUndoHistory(prev => [...prev, [...lines]]);
+    
+    // Activar el campo de texto con los datos de esta línea
+    setActiveTextInput(line);
+    
+    // Enfocar el campo de texto después de renderizarlo
+    setTimeout(() => {
+      if (textInputRef.current) {
+        textInputRef.current.focus();
+      }
+    }, 100);
+  };
+  
+  // Función para verificar si se hizo clic en un texto
+  const checkTextClick = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas || viewMode !== 'edit') return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    // Transformar coordenadas del cliente a coordenadas del canvas con zoom y pan
+    const canvasX = ((e.clientX - rect.left) / scale) + centerX * (1 - 1/scale) - offset.x / scale;
+    const canvasY = ((e.clientY - rect.top) / scale) + centerY * (1 - 1/scale) - offset.y / scale;
+    
+    // Verificar si algún texto fue clickeado
+    for (const line of lines) {
+      if (!line.text) continue;
+      
+      const isPointingRight = line.endX >= line.startX;
+      const horizontalLineLength = 100 / scale;
+      
+      // Determinar área del texto
+      const textX = isPointingRight 
+        ? line.endX + 10 / scale
+        : line.endX - horizontalLineLength + 10 / scale;
+        
+      const textY = line.endY - 10 / scale;
+      
+      const textLines = line.text.split('\n');
+      const lineHeight = 18 / scale;
+      const textHeight = textLines.length * lineHeight;
+      const textWidth = Math.max(...textLines.map(text => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.font = `${14 / scale}px Arial`;
+        return ctx.measureText(text).width;
+      }));
+      
+      // Verificar si el clic está dentro del área de texto
+      if (
+        canvasX >= textX - 5 / scale &&
+        canvasX <= textX + textWidth + 10 / scale &&
+        canvasY >= textY - 20 / scale &&
+        canvasY <= textY + textHeight
+      ) {
+        editLineText(line);
+        return true;
+      }
+    }
+    return false;
+  };
+
   // Modificar los manejadores de eventos del ratón para el dibujo
   const handleMouseDown = (e) => {
+    if (viewMode === 'move' || e.button === 1) { // Modo mover o botón central
+      handlePanStart(e);
+      return;
+    }
+    
     if (viewMode === 'edit' && e.button === 0) { // Solo en modo edición y con clic izquierdo
+      // Primero verificar si se hizo clic en un texto
+      if (checkTextClick(e)) {
+        return;
+      }
+      
+      // Si no se hizo clic en un texto, iniciar dibujo de línea
       const canvas = canvasRef.current;
       if (!canvas) return;
       
@@ -459,8 +564,6 @@ function ImageEditor({ image }) {
       
       setCurrentLine({ startX: canvasX, startY: canvasY, endX: canvasX, endY: canvasY });
       setIsDrawing(true);
-    } else {
-      handlePanStart(e);
     }
   };
 
@@ -629,7 +732,11 @@ function ImageEditor({ image }) {
   // Función para deshacer la última acción
   const handleUndo = () => {
     // No hacer nada si estamos en modo de entrada de texto
-    if (activeTextInput) return;
+    if (activeTextInput) {
+      // Si estamos editando texto, cancelamos la edición
+      cancelTextInput();
+      return;
+    }
     
     if (undoHistory.length > 0) {
       // Obtener el último estado guardado
@@ -876,18 +983,38 @@ function ImageEditor({ image }) {
               }}
               className="textarea-container"
             >
+              <div className="textarea-controls bg-gray-200 rounded-t px-2 py-1 flex justify-between items-center border border-gray-300 border-b-0">
+                <span className="text-sm text-gray-700">Editar texto</span>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={saveTextAndCloseInput}
+                    className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                    title="Guardar (Enter)"
+                  >
+                    Guardar
+                  </button>
+                  <button 
+                    onClick={cancelTextInput}
+                    className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                    title="Cancelar (Esc)"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+              
               <textarea
                 ref={textInputRef}
                 value={activeTextInput.text || ''}
                 onChange={handleTextChange}
                 onKeyDown={handleTextKeyDown}
-                onBlur={saveTextAndCloseInput}
-                className="border border-gray-300 p-2 min-w-[200px] min-h-[80px] bg-white shadow-md text-black"
+                className="border border-gray-300 p-2 min-w-[200px] min-h-[80px] bg-white shadow-md text-black rounded-b"
                 placeholder="Escribe texto aquí... (Enter para guardar, Shift+Enter para nueva línea)"
                 autoFocus
                 style={{ 
-                  // Escalar el tamaño de la fuente inversamente al zoom para mantener tamaño legible
-                  fontSize: `${Math.max(12, 14 / Math.sqrt(scale))}px` 
+                  fontSize: `${Math.max(12, 14 / Math.sqrt(scale))}px`,
+                  borderTopLeftRadius: 0,
+                  borderTopRightRadius: 0
                 }}
               />
             </div>
@@ -901,6 +1028,7 @@ function ImageEditor({ image }) {
         <ul className="text-xs space-y-1">
           <li>• Ctrl+Z: Deshacer</li>
           <li>• Espacio: Cambiar modo edición/movimiento</li>
+          <li>• Haz clic en un texto para editarlo</li>
           <li>• Rueda del ratón: Zoom</li>
           <li>• Botón central o modo mover: Arrastrar vista</li>
           <li>• Ctrl+0: Restablecer vista</li>
