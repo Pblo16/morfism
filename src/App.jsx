@@ -711,22 +711,236 @@ function ImageEditor({ image }) {
     if (!canvas) return;
     
     try {
-      // Convertir el canvas a una URL de datos en formato JPG
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // 0.9 es la calidad (90%)
+      // Crear un canvas temporal para la exportación
+      const exportCanvas = document.createElement('canvas');
+      const exportCtx = exportCanvas.getContext('2d');
       
-      // Crear un enlace temporal para descargar
+      // Obtener el área exacta que contiene la imagen y anotaciones
+      const boundingBox = calculateActiveBoundingBox();
+      
+      // Verificar si el área es válida
+      if (boundingBox.width <= 0 || boundingBox.height <= 0) {
+        alert('No se pudo determinar el área para exportar.');
+        return;
+      }
+      
+      console.log("Área calculada:", boundingBox);
+      
+      // Establecer el tamaño del canvas de exportación al área exacta
+      exportCanvas.width = boundingBox.width;
+      exportCanvas.height = boundingBox.height;
+      
+      // Aplicar fondo blanco al canvas de exportación
+      exportCtx.fillStyle = 'white';
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      
+      // Dibujar solo la porción relevante del canvas original
+      exportCtx.drawImage(
+        canvas, 
+        boundingBox.x, boundingBox.y, boundingBox.width, boundingBox.height,
+        0, 0, exportCanvas.width, exportCanvas.height
+      );
+      
+      // Mostrar vista previa de la imagen recortada
+      showExportPreview(exportCanvas);
+    } catch (error) {
+      console.error('Error al preparar la imagen para descargar:', error);
+      alert('Hubo un problema al procesar la imagen.');
+    }
+  };
+
+  // Función para mostrar vista previa de la exportación
+  const showExportPreview = (exportCanvas) => {
+    // Crear un modal para mostrar la vista previa
+    const modal = document.createElement('div');
+    modal.className = 'export-preview-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    modal.style.zIndex = '1000';
+    modal.style.display = 'flex';
+    modal.style.flexDirection = 'column';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    
+    // Contenedor para la imagen y controles
+    const container = document.createElement('div');
+    container.style.backgroundColor = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '8px';
+    container.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+    container.style.maxWidth = '90%';
+    container.style.maxHeight = '90%';
+    container.style.overflow = 'auto';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '15px';
+    
+    // Título
+    const title = document.createElement('h3');
+    title.textContent = 'Vista previa de la imagen recortada';
+    title.style.margin = '0';
+    title.style.textAlign = 'center';
+    
+    // Contenedor de la imagen
+    const imageContainer = document.createElement('div');
+    imageContainer.style.overflow = 'auto';
+    imageContainer.style.maxHeight = '70vh';
+    imageContainer.style.display = 'flex';
+    imageContainer.style.justifyContent = 'center';
+    imageContainer.style.border = '1px solid #ddd';
+    imageContainer.style.backgroundColor = '#f8f8f8';
+    
+    // Imagen
+    const img = document.createElement('img');
+    img.src = exportCanvas.toDataURL('image/jpeg', 0.9);
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    
+    // Información de dimensiones
+    const info = document.createElement('div');
+    info.textContent = `Dimensiones: ${exportCanvas.width}px × ${exportCanvas.height}px`;
+    info.style.textAlign = 'center';
+    info.style.color = '#666';
+    
+    // Controles
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.justifyContent = 'center';
+    controls.style.gap = '10px';
+    
+    // Botón para descargar
+    const downloadBtn = document.createElement('button');
+    downloadBtn.textContent = 'Descargar';
+    downloadBtn.className = 'btn-tool bg-green-500';
+    downloadBtn.style.padding = '8px 16px';
+    downloadBtn.style.backgroundColor = '#22c55e';
+    downloadBtn.style.color = 'white';
+    downloadBtn.style.border = 'none';
+    downloadBtn.style.borderRadius = '4px';
+    downloadBtn.style.cursor = 'pointer';
+    downloadBtn.onclick = () => {
       const link = document.createElement('a');
       link.download = `imagen_editada_${new Date().getTime()}.jpg`;
-      link.href = dataUrl;
-      
-      // Simular un clic para iniciar la descarga
+      link.href = exportCanvas.toDataURL('image/jpeg', 0.9);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error al descargar la imagen:', error);
-      alert('Hubo un problema al generar la imagen para descargar.');
+      document.body.removeChild(modal);
+    };
+    
+    // Botón para cancelar
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancelar';
+    cancelBtn.className = 'btn-tool bg-red-500';
+    cancelBtn.style.padding = '8px 16px';
+    cancelBtn.style.backgroundColor = '#ef4444';
+    cancelBtn.style.color = 'white';
+    cancelBtn.style.border = 'none';
+    cancelBtn.style.borderRadius = '4px';
+    cancelBtn.style.cursor = 'pointer';
+    cancelBtn.onclick = () => {
+      document.body.removeChild(modal);
+    };
+    
+    // Ensamblar el modal
+    imageContainer.appendChild(img);
+    controls.appendChild(downloadBtn);
+    controls.appendChild(cancelBtn);
+    container.appendChild(title);
+    container.appendChild(imageContainer);
+    container.appendChild(info);
+    container.appendChild(controls);
+    modal.appendChild(container);
+    
+    // Agregar el modal al body
+    document.body.appendChild(modal);
+  };
+
+  // Función para calcular el área activa del canvas (imagen + anotaciones)
+  const calculateActiveBoundingBox = () => {
+    // Primero obtenemos las dimensiones y posición de la imagen
+    const imgX = Math.round((canvasDimensions.width - canvasDimensions.imageWidth) / 2);
+    const imgY = Math.round((canvasDimensions.height - canvasDimensions.imageHeight) / 2);
+    
+    // Inicialmente establecemos el área como el área de la imagen
+    let minX = imgX;
+    let minY = imgY;
+    let maxX = imgX + canvasDimensions.imageWidth;
+    let maxY = imgY + canvasDimensions.imageHeight;
+    
+    // Si no hay líneas, solo devolvemos el área de la imagen
+    if (lines.length === 0) {
+      return {
+        x: minX,
+        y: minY,
+        width: canvasDimensions.imageWidth,
+        height: canvasDimensions.imageHeight
+      };
     }
+    
+    // Expandir el área para incluir todas las líneas y textos
+    lines.forEach(line => {
+      // Verificar las coordenadas de la línea principal
+      minX = Math.min(minX, line.startX, line.endX);
+      minY = Math.min(minY, line.startY, line.endY);
+      maxX = Math.max(maxX, line.startX, line.endX);
+      maxY = Math.max(maxY, line.startY, line.endY);
+      
+      // Verificar la línea horizontal para el texto
+      const isPointingRight = line.endX >= line.startX;
+      const horizontalLineLength = 100;
+      const horizontalEndX = isPointingRight 
+        ? line.endX + horizontalLineLength 
+        : line.endX - horizontalLineLength;
+      
+      minX = Math.min(minX, horizontalEndX);
+      maxX = Math.max(maxX, horizontalEndX);
+      
+      // Si hay texto, agregar su área al cálculo
+      if (line.text && line.text.trim()) {
+        const textLines = line.text.split('\n');
+        const lineHeight = 18;
+        const textHeight = textLines.length * lineHeight;
+        
+        // Calcular el área ocupada por el texto
+        const textX = isPointingRight 
+          ? line.endX + 10 
+          : line.endX - horizontalLineLength + 10;
+        const textY = line.endY - 10;
+        
+        // Estimar el ancho del texto (aproximación)
+        const estimatedTextWidth = textLines.reduce((maxWidth, line) => {
+          return Math.max(maxWidth, line.length * 8); // Aproximado: 8px por carácter
+        }, 0);
+        
+        minX = Math.min(minX, textX);
+        minY = Math.min(minY, textY - textHeight);
+        maxX = Math.max(maxX, textX + estimatedTextWidth);
+        maxY = Math.max(maxY, textY + 5); // pequeño margen inferior
+      }
+    });
+    
+    // Agregar un margen alrededor del área activa para que nada quede cortado
+    const margin = 30;
+    minX = Math.max(0, Math.floor(minX - margin));
+    minY = Math.max(0, Math.floor(minY - margin));
+    maxX = Math.min(canvasDimensions.width, Math.ceil(maxX + margin));
+    maxY = Math.min(canvasDimensions.height, Math.ceil(maxY + margin));
+    
+    // Asegurar que las dimensiones sean números enteros
+    const width = maxX - minX;
+    const height = maxY - minY;
+    
+    return {
+      x: minX,
+      y: minY,
+      width: width,
+      height: height
+    };
   };
 
   // Función para deshacer la última acción
@@ -926,9 +1140,9 @@ function ImageEditor({ image }) {
           <button 
             onClick={downloadImage}
             className="btn-tool bg-green-500 hover:bg-green-600"
-            title="Descargar imagen editada"
+            title="Exportar imagen recortada"
           >
-            Descargar JPG
+            Exportar JPG
           </button>
           
           <button 
@@ -1020,19 +1234,6 @@ function ImageEditor({ image }) {
             </div>
           )}
         </div>
-      </div>
-      
-      {/* Instrucciones flotantes en la esquina */}
-      <div className="fixed bottom-4 right-4 max-w-xs bg-white p-3 rounded-lg shadow-lg opacity-75 hover:opacity-100 transition-opacity">
-        <h3 className="text-sm font-bold mb-1">Atajos de teclado:</h3>
-        <ul className="text-xs space-y-1">
-          <li>• Ctrl+Z: Deshacer</li>
-          <li>• Espacio: Cambiar modo edición/movimiento</li>
-          <li>• Haz clic en un texto para editarlo</li>
-          <li>• Rueda del ratón: Zoom</li>
-          <li>• Botón central o modo mover: Arrastrar vista</li>
-          <li>• Ctrl+0: Restablecer vista</li>
-        </ul>
       </div>
     </div>
   );
