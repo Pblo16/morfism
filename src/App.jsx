@@ -81,6 +81,21 @@ function ImageEditor({ image }) {
   const [startPanPos, setStartPanPos] = useState({ x: 0, y: 0 })
   const [viewMode, setViewMode] = useState('edit') // 'edit' o 'move'
   
+  // Estado para el color de línea seleccionado
+  const [lineColor, setLineColor] = useState('#ff0000'); // Rojo por defecto
+  
+  // Colores predefinidos para la paleta
+  const predefinedColors = [
+    '#ff0000', // Rojo
+    '#ff8800', // Naranja
+    '#ffff00', // Amarillo
+    '#00ff00', // Verde
+    '#0000ff', // Azul
+    '#800080', // Púrpura
+    '#000000', // Negro
+    '#ffffff', // Blanco
+  ];
+  
   // Verificar si hay una imagen para editar
   if (!image) {
     return (
@@ -262,7 +277,7 @@ function ImageEditor({ image }) {
       ctx.beginPath();
       ctx.moveTo(line.startX, line.startY);
       ctx.lineTo(line.endX, line.endY);
-      ctx.strokeStyle = 'red';
+      ctx.strokeStyle = line.color || '#ff0000'; // Usar el color de la línea o rojo por defecto
       ctx.lineWidth = 2 / scale; // Ajustar grosor según zoom
       ctx.stroke();
       
@@ -281,7 +296,7 @@ function ImageEditor({ image }) {
         
       ctx.moveTo(horizontalLineStartX, horizontalLineStartY);
       ctx.lineTo(horizontalLineEndX, horizontalLineStartY);
-      ctx.strokeStyle = 'red';
+      ctx.strokeStyle = line.color || '#ff0000'; // Mismo color que la línea principal
       ctx.lineWidth = 1 / scale;
       ctx.stroke();
       
@@ -326,13 +341,13 @@ function ImageEditor({ image }) {
       ctx.beginPath();
       ctx.moveTo(currentLine.startX, currentLine.startY);
       ctx.lineTo(currentLine.endX, currentLine.endY);
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = lineColor; // Usar el color seleccionado actualmente
+      ctx.lineWidth = 2 / scale;
       ctx.stroke();
       
       // Determinar dirección y dibujar línea horizontal actual
       const isPointingRight = currentLine.endX >= currentLine.startX;
-      const horizontalLineLength = 100;
+      const horizontalLineLength = 100 / scale;
       
       ctx.beginPath();
       ctx.moveTo(currentLine.endX, currentLine.endY);
@@ -342,8 +357,8 @@ function ImageEditor({ image }) {
           : currentLine.endX - horizontalLineLength, 
         currentLine.endY
       );
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = lineColor; // Usar el color seleccionado actualmente
+      ctx.lineWidth = 1 / scale;
       ctx.stroke();
     }
     
@@ -488,7 +503,11 @@ function ImageEditor({ image }) {
         setUndoHistory(prev => [...prev, [...lines]]);
         
         // Iniciar entrada de texto al final de la línea
-        const newLine = { ...currentLine, text: '' };
+        const newLine = { 
+          ...currentLine, 
+          text: '',
+          color: lineColor // Asignar el color actual a la nueva línea
+        };
         setLines([...lines, newLine]);
         setActiveTextInput(newLine);
         setCurrentLine(null);
@@ -719,6 +738,11 @@ function ImageEditor({ image }) {
     };
   };
 
+  // Función para manejar el cambio de color
+  const handleColorChange = (color) => {
+    setLineColor(color);
+  };
+
   return (
     <div className="editor-page fixed inset-0 overflow-hidden bg-gray-100 flex flex-col">
       {/* Barra de herramientas fija en la parte superior */}
@@ -748,6 +772,41 @@ function ImageEditor({ image }) {
           >
             {viewMode === 'move' ? 'Modo Mover' : 'Modo Editar'}
           </button>
+          
+          {/* Selector de color */}
+          <div className="color-picker-container flex items-center">
+            <label className="text-sm mr-2">Color:</label>
+            <div className="color-picker-wrapper relative">
+              <input
+                type="color"
+                value={lineColor}
+                onChange={(e) => handleColorChange(e.target.value)}
+                className="color-picker w-8 h-8 cursor-pointer outline-none border-0"
+                title="Seleccionar color de línea"
+              />
+              <div 
+                className="selected-color absolute top-0 left-0 right-0 bottom-0 pointer-events-none" 
+                style={{ backgroundColor: lineColor, borderRadius: '4px' }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Paleta de colores predefinidos */}
+          <div className="color-palette flex space-x-1 ml-1">
+            {predefinedColors.map((color) => (
+              <button
+                key={color}
+                className="color-option w-6 h-6 rounded-sm border-2 cursor-pointer transition-transform"
+                style={{ 
+                  backgroundColor: color, 
+                  borderColor: color === lineColor ? '#333' : 'transparent',
+                  transform: color === lineColor ? 'scale(1.2)' : 'scale(1)'
+                }}
+                onClick={() => handleColorChange(color)}
+                title="Seleccionar este color"
+              />
+            ))}
+          </div>
           
           <button 
             onClick={resetView}

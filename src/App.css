@@ -115,3 +115,56 @@ body {
     min-height: 60px;
   }
 }
+
+/* Estilos para el selector de color */
+.color-picker-container {
+  display: flex;
+  align-items: center;
+  background-color: #f1f5f9;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.color-picker-wrapper {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.color-picker {
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.selected-color {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para la paleta de colores predefinidos */
+.color-palette {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.color-option {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.2);
+}
