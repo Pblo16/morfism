@@ -672,6 +672,53 @@ function ImageEditor({ image }) {
     redrawCanvas();
   }, [lines, currentLine, activeTextInput, scale, offset]);
 
+  // Función para calcular la posición del textarea
+  const calculateTextareaPosition = (activeInput) => {
+    if (!canvasRef.current || !activeInput) return { left: 0, top: 0 };
+
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    // Calcula la posición central para la imagen
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Determine la dirección del texto (derecha o izquierda)
+    const isPointingRight = activeInput.endX >= activeInput.startX;
+
+    // Calcula la posición en coordenadas del canvas
+    const inputX = activeInput.endX;
+    const inputY = activeInput.endY - 40 / scale; // Ligero offset vertical para no tapar la línea
+
+    // Aplica todas las transformaciones para obtener la posición en pantalla
+    // Primero convierte de coordenadas del canvas a coordenadas DOM
+    const transformedX = (
+      // Posición base en el canvas
+      inputX
+      // Ajuste por desplazamiento horizontal (pan)
+      + offset.x / scale
+      // Ajuste por la posición central del canvas
+      - centerX * (1 - 1/scale)
+    ) * scale;
+
+    const transformedY = (
+      // Posición base en el canvas
+      inputY
+      // Ajuste por desplazamiento vertical (pan)
+      + offset.y / scale
+      // Ajuste por la posición central del canvas
+      - centerY * (1 - 1/scale)
+    ) * scale;
+
+    // Añade un desplazamiento horizontal dependiendo de la dirección de la línea
+    const horizontalOffset = isPointingRight ? 50 : -50;
+
+    return {
+      left: transformedX + horizontalOffset,
+      top: transformedY
+    };
+  };
+
   return (
     <div className="editor-page fixed inset-0 overflow-hidden bg-gray-100 flex flex-col">
       {/* Barra de herramientas fija en la parte superior */}
@@ -758,18 +805,17 @@ function ImageEditor({ image }) {
             onContextMenu={(e) => e.preventDefault()} // Prevenir menú contextual
           />
           
-          {/* Input de texto flotante */}
+          {/* Input de texto flotante con posición corregida */}
           {activeTextInput && (
             <div 
               style={{
                 position: 'absolute',
-                left: `${((activeTextInput.endX >= activeTextInput.startX ? 
-                  activeTextInput.endX + 10 / scale : 
-                  activeTextInput.endX - 100 / scale + 10 / scale) - (canvasDimensions.width / 2 - offset.x) * (1 - scale) / scale) * scale}px`,
-                top: `${((activeTextInput.endY - 40 / scale) - (canvasDimensions.height / 2 - offset.y) * (1 - scale) / scale) * scale}px`,
+                left: `${calculateTextareaPosition(activeTextInput).left}px`,
+                top: `${calculateTextareaPosition(activeTextInput).top}px`,
                 zIndex: 10,
-                transform: 'translateX(-50%)'
+                transform: 'translate(-50%, -50%)'
               }}
+              className="textarea-container"
             >
               <textarea
                 ref={textInputRef}
@@ -780,6 +826,10 @@ function ImageEditor({ image }) {
                 className="border border-gray-300 p-2 min-w-[200px] min-h-[80px] bg-white shadow-md text-black"
                 placeholder="Escribe texto aquí... (Enter para guardar, Shift+Enter para nueva línea)"
                 autoFocus
+                style={{ 
+                  // Escalar el tamaño de la fuente inversamente al zoom para mantener tamaño legible
+                  fontSize: `${Math.max(12, 14 / Math.sqrt(scale))}px` 
+                }}
               />
             </div>
           )}
