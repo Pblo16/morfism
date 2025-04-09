@@ -1,0 +1,31 @@
+/* Estilos específicos para comportamiento de zoom */
+.zoom-canvas {
+  transform-origin: 0 0;
+}
+
+/* Cursor de zoom */
+.zoom-in-cursor {
+  cursor: zoom-in !important;
+}
+
+.zoom-out-cursor {
+  cursor: zoom-out !important;
+}
+
+/* Tooltip para indicar el nivel de zoom */
+.zoom-indicator {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  pointer-events: none;
+  z-index: 100;
+  transition: opacity 0.3s ease;
+}
+
+/* Animación suave para cambios de zoom */
+.smooth-zoom {
+  transition: transform 0.1s ease-out;
+}

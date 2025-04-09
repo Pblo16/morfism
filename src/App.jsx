@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import './App.css'
 import './styles/scrollbars.css'
+import './styles/zoom.css'
 import ImageUploader from './components/ImageUploader'
 import ImageEditor from './components/ImageEditor'
 
