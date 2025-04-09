@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { redrawCanvas, calculateActiveBoundingBox } from '../utils/canvasUtils'
 import ExportPreview from './ExportPreview'
+import '../styles/scrollbars.css' // Importar los estilos para scrollbars personalizados
 
 // Componente para el editor de imágenes
 function ImageEditor({ image }) {
@@ -171,29 +172,40 @@ function ImageEditor({ image }) {
     }
   }, [canvasDimensions, imageLoaded, scale, offset, lines, currentLine, lineColor, activeTextInput]);
 
-  // Manejadores de eventos para zoom
+  // Modificar el manejador de eventos para zoom (ahora con Shift)
   const handleWheel = (e) => {
     e.preventDefault();
     
     // Factor de zoom por cada scroll
     const zoomIntensity = 0.1;
     
-    // Calcular nueva escala
-    let newScale;
-    if (e.deltaY < 0) {
-      // Zoom in (límite máximo de zoom: 5x)
-      newScale = Math.min(scale * (1 + zoomIntensity), 5);
+    // Verificar si Shift está presionado para zoom
+    if (e.shiftKey) {
+      // Calcular nueva escala
+      let newScale;
+      if (e.deltaY < 0) {
+        // Zoom in (límite máximo de zoom: 5x)
+        newScale = Math.min(scale * (1 + zoomIntensity), 5);
+      } else {
+        // Zoom out (límite mínimo de zoom: 0.2x)
+        newScale = Math.max(scale * (1 - zoomIntensity), 0.2);
+      }
+      
+      setScale(newScale);
     } else {
-      // Zoom out (límite mínimo de zoom: 0.2x)
-      newScale = Math.max(scale * (1 - zoomIntensity), 0.2);
+      // Movimiento normal (desplazamiento)
+      // Permitir que el contenedor maneje el scroll natural
+      if (containerRef.current) {
+        containerRef.current.scrollTop += e.deltaY;
+        containerRef.current.scrollLeft += e.deltaX;
+      }
     }
-    
-    setScale(newScale);
   };
 
   // Manejadores de eventos para arrastrar el canvas (pan)
   const handlePanStart = (e) => {
-    if (viewMode === 'move' || e.button === 1) { // Si estamos en modo mover o se usa el botón central
+    // Solo iniciar arrastre si está en modo mover o se usa el botón central
+    if (viewMode === 'move' || e.button === 1) { 
       setIsPanning(true);
       setStartPanPos({
         x: e.clientX - offset.x,
@@ -862,13 +874,14 @@ function ImageEditor({ image }) {
           <span className="text-sm text-gray-600 ml-2">
             Zoom: {Math.round(scale * 100)}%
             {canvasDimensions.scale < 1 && ` • Imagen original: ${Math.round(canvasDimensions.scale * 100)}%`}
+            <span className="ml-2 text-gray-500 italic text-xs">(Shift + Rueda para zoom)</span>
           </span>
         </div>
       </div>
       
-      {/* Contenedor principal que ocupa todo el espacio disponible */}
+      {/* Contenedor principal con barras de desplazamiento */}
       <div 
-        className="canvas-container flex-grow mt-16 overflow-hidden"
+        className="canvas-container custom-scrollbar flex-grow mt-16 overflow-auto" 
         ref={containerRef}
         onWheel={handleWheel}
       >
@@ -941,6 +954,15 @@ function ImageEditor({ image }) {
             </div>
           )}
         </div>
+      </div>
+      
+      {/* Indicaciones de ayuda para la navegación */}
+      <div className="navigation-help fixed bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white text-xs px-3 py-1 rounded-full z-10">
+        <span>Shift + Rueda = Zoom</span>
+        <span className="mx-2">|</span>
+        <span>Rueda = Desplazamiento</span>
+        <span className="mx-2">|</span>
+        <span>Espacio = Cambiar modo</span>
       </div>
     </div>
   );

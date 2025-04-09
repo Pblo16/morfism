@@ -1,0 +1,48 @@
+/* Estilos personalizados para scrollbars */
+.custom-scrollbar {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) rgba(229, 231, 235, 0.5);
+}
+
+/* Chrome, Edge, y Safari */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(229, 231, 235, 0.5);
+  border-radius: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 6px;
+  border: 3px solid rgba(229, 231, 235, 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.7);
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: rgba(229, 231, 235, 0.5);
+}
+
+/* Dar espacio para scrollbars en el contenedor del canvas */
+.canvas-container {
+  padding: 2px;
+}
+
+/* Ayuda visual para la navegación */
+.navigation-help {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.navigation-help:hover {
+  opacity: 1;
+}
